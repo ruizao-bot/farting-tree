@@ -1,0 +1,18 @@
+# Conda environment specification for Quick Metagenomic Search Pipeline
+# Usage: conda env create -f environment.yml
+
+name: quick_search
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+
+dependencies:
+  - python=3.10
+  - bbmap=39.10
+  - diamond
+  - singlem>=0.20.0
+  - hmmer
+  - orfm>=0.7
+  - smafa>=0.5
+  - pplacer

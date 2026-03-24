@@ -1,0 +1,41 @@
+#!/bin/bash
+#PBS -N quick_search
+#PBS -l nodes=1:ppn=24,mem=128gb,walltime=24:00:00
+#PBS -j oe
+
+# Enter the directory where the job was submitted
+cd $PBS_O_WORKDIR
+
+# Define log file using variables (safe to parse inside the script body)
+LOG_FILE="${PBS_JOBNAME}.log.${PBS_JOBID/.pbs-7/}"
+exec > "$LOG_FILE" 2>&1
+
+echo "Job ID:       $PBS_JOBID"
+echo "Node Name:    $(hostname)"
+echo "Start Time:   $(date)"
+
+# Verify if the script path is accessible after server update
+SCRIPT_PATH="/rds/general/user/jc224/home/meta/Scripts/01_pipelines/quick_search.sh"
+if [ ! -f "$SCRIPT_PATH" ]; then
+    echo "ERROR: Script not found at $SCRIPT_PATH"
+    exit 1
+fi
+
+# Initialize Conda
+source "$HOME/miniconda3/etc/profile.d/conda.sh"
+
+# Activate environment
+conda activate quick_search
+if [ $? -ne 0 ]; then
+    echo "ERROR: Failed to activate conda environment 'quick_search'"
+    exit 1
+fi
+
+# Set parallelization: 5 samples in parallel, 4 threads each (5 × 4 = 20 cores)
+export MAX_PARALLEL_SAMPLES=5
+export THREADS=4
+
+# Execute the pipeline (use 'source' so conda environment is inherited)
+source "$SCRIPT_PATH" 53394 53395 53396 53397 53398 53399
+
+echo "Job Finished at: $(date)"

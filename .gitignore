@@ -1,0 +1,23 @@
+# Ignore data directories
+Data/
+Logs/
+Results/
+
+# Ignore conda installer
+Miniconda3-latest-Linux-x86_64.sh
+
+# Ignore specific file types in Scripts
+Scripts/**/*.o*
+Scripts/**/*.e*
+Scripts/**/*.log
+Scripts/**/*.log.*
+Scripts/**/*.logfile
+Scripts/**/*.out
+Scripts/**/*.err
+Scripts/**/*.stderr
+Scripts/**/*.stdout
+Scripts/**/.DS_Store
+Scripts/**/*.mth
+
+# Keep environment file
+!environment.yml
