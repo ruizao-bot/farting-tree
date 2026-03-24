@@ -167,16 +167,16 @@ step2_import_data() {
     source "$(conda info --base)/etc/profile.d/conda.sh"
     conda activate "${ENV_NAME}" || error_exit "Failed to activate QIIME2 environment"
     
-    # Check if manifest file exists - look in Data/raw_data first, then current directory
+    # Check if manifest file exists - look in Data/raw_data/16S first, then current directory
     MANIFEST_PATH=""
-    if [[ -f "Data/raw_data/manifest.tsv" ]]; then
-        MANIFEST_PATH="Data/raw_data/manifest.tsv"
-        log "Using manifest file: Data/raw_data/manifest.tsv"
+    if [[ -f "Data/raw_data/16S/manifest.tsv" ]]; then
+        MANIFEST_PATH="Data/raw_data/16S/manifest.tsv"
+        log "Using manifest file: Data/raw_data/16S/manifest.tsv"
     elif [[ -f "manifest.tsv" ]]; then
         MANIFEST_PATH="manifest.tsv"
         log "Using manifest file: manifest.tsv (in working directory)"
     else
-        error_exit "manifest.tsv file not found. Please create this file in Data/raw_data/ or current directory according to QIIME2 specifications."
+        error_exit "manifest.tsv file not found. Please create this file in Data/raw_data/16S/ or current directory according to QIIME2 specifications."
     fi
     
     log "Importing paired-end data from ${MANIFEST_PATH}..."
