@@ -8,7 +8,7 @@ Miniconda3-latest-Linux-x86_64.sh
 
 # Ignore HPC scripts folder
 Scripts/02_hpc/
-
+Scripts/02_downstream
 # Ignore specific file types in Scripts
 Scripts/**/*.o*
 Scripts/**/*.e*
