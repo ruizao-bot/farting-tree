@@ -6,9 +6,11 @@ Results/
 # Ignore conda installer
 Miniconda3-latest-Linux-x86_64.sh
 
-# Ignore HPC scripts folder
+# Ignore pipeline/downstream working folders
+Scripts/01_pipelines/
+Scripts/02_downstream/
 Scripts/02_hpc/
-Scripts/02_downstream
+
 # Ignore specific file types in Scripts
 Scripts/**/*.o*
 Scripts/**/*.e*
@@ -22,5 +24,6 @@ Scripts/**/*.stdout
 Scripts/**/.DS_Store
 Scripts/**/*.mth
 
-# Keep environment file
+# Keep essential files
 !environment.yml
+!**/.gitkeep
