@@ -419,7 +419,7 @@ if [ "$MAX_PARALLEL_SAMPLES" -gt 1 ]; then
             'if process_sample {}; then echo "✓ {} done"; else echo "✗ {} failed"; fi'
         for S in "${SAMPLE_LIST[@]}"; do
             grep -q "COMPLETE:" "${LOG_DIR}/${S}_quick_search.log" 2>/dev/null \
-                && (( SUCCESS_COUNT++ )) || { (( FAIL_COUNT++ )); FAILED_SAMPLES+=("$S"); }
+                && { (( SUCCESS_COUNT++ )) || true; } || { (( FAIL_COUNT++ )) || true; FAILED_SAMPLES+=("$S"); }
         done
     else
         echo "WARNING: GNU parallel not found. Falling back to sequential."
@@ -432,10 +432,10 @@ if [ "$MAX_PARALLEL_SAMPLES" -eq 1 ]; then
         echo ""
         echo "### Processing ${SAMPLE_ID} ($(( SUCCESS_COUNT+FAIL_COUNT+1 ))/${#SAMPLE_LIST[@]}) ###"
         if process_sample "$SAMPLE_ID"; then
-            (( SUCCESS_COUNT++ ))
+            (( SUCCESS_COUNT++ )) || true
             echo "✓ ${SAMPLE_ID} done"
         else
-            (( FAIL_COUNT++ ))
+            (( FAIL_COUNT++ )) || true
             FAILED_SAMPLES+=("$SAMPLE_ID")
             echo "✗ ${SAMPLE_ID} failed"
         fi
