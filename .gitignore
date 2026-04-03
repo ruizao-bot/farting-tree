@@ -107,6 +107,9 @@ Scripts/**/*.out
 Scripts/**/*.err
 Scripts/**/*.log
 Scripts/**/*.log.*
+# SLURM submission scripts - Keep template, ignore others
+*.slurm
+!Scripts/run_shotgun.slurm
 
 # ------------------------------------------------------------------------------
 # Conda/Environment Files
