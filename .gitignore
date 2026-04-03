@@ -184,7 +184,6 @@ env/
 
 # Main pipeline scripts
 !Scripts/shotgun_quick.sh
-!Scripts/run_shotgun.slurm
 
 # Directory structure markers
 !**/.gitkeep
