@@ -1,29 +1,200 @@
-# Ignore data directories
-Data/
-Logs/
-Results/
+# ==============================================================================
+# Shotgun Metagenomic Pipeline - Git Ignore Rules
+# Keep: Scripts, directory structure, and configuration files
+# Ignore: Data files, logs, results, temporary files
+# ==============================================================================
 
-# Ignore conda installer
-Miniconda3-latest-Linux-x86_64.sh
+# ------------------------------------------------------------------------------
+# Data Files - Raw Data
+# ------------------------------------------------------------------------------
+Data/raw_data/*.fastq.gz
+Data/raw_data/*.fq.gz
+Data/raw_data/*.fastq
+Data/raw_data/*.fq
+Data/raw_data/*.tsv
+Data/raw_data/*.csv
+Data/raw_data/.DS_Store
+!Data/raw_data/.gitkeep
 
-# Ignore pipeline/downstream working folders
+# ------------------------------------------------------------------------------
+# Data Files - Processed Data
+# ------------------------------------------------------------------------------
+Data/processed_data/**/*
+!Data/processed_data/.gitkeep
+!Data/processed_data/fastp_cleaned/.gitkeep
+!Data/processed_data/host_removed/.gitkeep
+
+
+# ------------------------------------------------------------------------------
+# Data Files - Temporary
+# ------------------------------------------------------------------------------
+Data/temp/*
+!Data/temp/.gitkeep
+
+# ------------------------------------------------------------------------------
+# Data Files - Metadata
+# ------------------------------------------------------------------------------
+Data/metadata/*
+!Data/metadata/.gitkeep
+!Data/metadata/*.example.tsv
+
+# ------------------------------------------------------------------------------
+# Reference Databases (large files, not suitable for git)
+# ------------------------------------------------------------------------------
+# Kraken2 database files
+Data/reference_dbs/*.k2d
+Data/reference_dbs/kraken2_db/**/*
+!Data/reference_dbs/kraken2_db/.gitkeep
+
+# DIAMOND database files
+Data/reference_dbs/DIAMOND/*.dmnd
+Data/reference_dbs/DIAMOND/*.faa
+Data/reference_dbs/DIAMOND/*.fasta
+!Data/reference_dbs/DIAMOND/.gitkeep
+
+# Host genome files
+Data/reference_dbs/host_genomes/*.bt2
+Data/reference_dbs/host_genomes/*.fa
+Data/reference_dbs/host_genomes/*.fasta
+Data/reference_dbs/host_genomes/*.fna
+Data/reference_dbs/host_genomes/*.fai
+!Data/reference_dbs/host_genomes/.gitkeep
+
+# Other reference database files
+Data/reference_dbs/*.faa
+Data/reference_dbs/*.fasta
+Data/reference_dbs/*.fna
+Data/reference_dbs/*.kmer_distrib
+Data/reference_dbs/*.tsv
+Data/reference_dbs/*.txt
+Data/reference_dbs/mothur/**/*
+!Data/reference_dbs/mothur/.gitkeep
+!Data/reference_dbs/.gitkeep
+
+# ------------------------------------------------------------------------------
+# Log Files
+# ------------------------------------------------------------------------------
+Logs/*.out
+Logs/*.err
+Logs/*.log
+Logs/*.txt
+Logs/slurm_*
+Logs/*_quick_search.log
+Logs/*_fastp.log
+Logs/checkpoints/*
+!Logs/.gitkeep
+!Logs/checkpoints/.gitkeep
+
+# ------------------------------------------------------------------------------
+# Results
+# ------------------------------------------------------------------------------
+Results/**/*
+!Results/.gitkeep
+!Results/kraken2_output/.gitkeep
+!Results/functional_analysis/.gitkeep
+
+# ------------------------------------------------------------------------------
+# Scripts - Keep Only Main Pipeline Files
+# ------------------------------------------------------------------------------
+# Ignore all script directories except main ones
 Scripts/01_pipelines/
 Scripts/02_downstream/
 Scripts/02_hpc/
+Scripts/Logs/
 
-# Ignore specific file types in Scripts
-Scripts/**/*.o*
-Scripts/**/*.e*
-Scripts/**/*.log
-Scripts/**/*.log.*
-Scripts/**/*.logfile
+# Ignore script outputs
 Scripts/**/*.out
 Scripts/**/*.err
-Scripts/**/*.stderr
-Scripts/**/*.stdout
-Scripts/**/.DS_Store
-Scripts/**/*.mth
+Scripts/**/*.log
+Scripts/**/*.log.*
 
-# Keep essential files
-!environment.yml
+# ------------------------------------------------------------------------------
+# Conda/Environment Files
+# ------------------------------------------------------------------------------
+Miniconda3-latest-Linux-x86_64.sh
+miniconda3/
+.conda/
+.mamba/
+
+# ------------------------------------------------------------------------------
+# Temporary and System Files
+# ------------------------------------------------------------------------------
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+*.bak
+*.backup
+
+# ------------------------------------------------------------------------------
+# Python Files
+# ------------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# ------------------------------------------------------------------------------
+# R Files
+# ------------------------------------------------------------------------------
+.Rhistory
+.RData
+.Rproj.user
+*.Rproj
+
+# ------------------------------------------------------------------------------
+# Jupyter Notebook
+# ------------------------------------------------------------------------------
+.ipynb_checkpoints
+*.ipynb_checkpoints
+
+# ------------------------------------------------------------------------------
+# IDE and Editor Files
+# ------------------------------------------------------------------------------
+.vscode/
+.idea/
+*.sublime-*
+.project
+.settings/
+*.iml
+
+# ------------------------------------------------------------------------------
+# Virtual Environments
+# ------------------------------------------------------------------------------
+.venv/
+venv/
+ENV/
+env/
+
+# ------------------------------------------------------------------------------
+# ALWAYS KEEP - Essential Files
+# ------------------------------------------------------------------------------
+# Configuration and documentation
+!quick_search.yml
+!README.md
+!.gitignore
+
+# Main pipeline scripts
+!Scripts/shotgun_quick.sh
+!Scripts/run_shotgun.slurm
+
+# Directory structure markers
 !**/.gitkeep
+
+# Kraken2 taxonomy files
+Data/reference_dbs/names.dmp
+Data/reference_dbs/nodes.dmp
+Data/reference_dbs/seqid2taxid.map
+Data/reference_dbs/*.dmp
+Data/reference_dbs/*.map
+Data/reference_dbs/nohup.out
+Data/reference_dbs/wget-log
+Data/reference_dbs/*.log

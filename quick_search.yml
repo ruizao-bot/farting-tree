@@ -1,5 +1,5 @@
 # Conda environment specification for Quick Metagenomic Search Pipeline
-# Usage: conda env create -f environment.yml
+# Usage: conda env create -f quick_search.yml
 
 name: quick_search
 channels:
@@ -8,11 +8,23 @@ channels:
   - defaults
 
 dependencies:
+  # Core Python
   - python=3.10
+  
+  # Quality Control & Processing
+  - fastp
   - bbmap=39.10
+  
+  # Alignment & Host Removal
+  - bowtie2
+  
+  # Taxonomic Classification
+  - kraken2
+  
+  # Functional Analysis
   - diamond
-  - singlem>=0.20.0
   - hmmer
   - orfm>=0.7
+  - singlem>=0.20.0
   - smafa>=0.5
   - pplacer

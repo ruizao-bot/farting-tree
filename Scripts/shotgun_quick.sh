@@ -8,7 +8,7 @@ set -euo pipefail
 # --- Defaults ---
 THREADS=${THREADS:-4}
 MAX_PARALLEL_SAMPLES=${MAX_PARALLEL_SAMPLES:-1}
-RAW_DATA_SUBDIR=${RAW_DATA_SUBDIR:-shotgun}
+RAW_DATA_SUBDIR=${RAW_DATA_SUBDIR:-}
 
 # --- Resolve project paths from this script's location ---
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -84,7 +84,7 @@ REQUIREMENTS:
   - Conda env: quick_search (fastp, diamond, orfm, hmmer, kraken2)
   - Kraken2 DB:  Data/reference_dbs/kraken2_db/
   - DIAMOND DB:  Data/reference_dbs/DIAMOND/methane_master_db.dmnd
-  - Input:       Data/raw_data/shotgun/<SAMPLE>_R1*.fastq.gz
+  - Input:       Data/raw_data/<SAMPLE>_R1*.fastq.gz
 EOF
             exit 0 ;;
         -*) echo "ERROR: Unknown option: $1. Use --help."; exit 1 ;;
@@ -104,8 +104,8 @@ RAW_DATA_DIR="${BASE_DIR}/Data/raw_data/${RAW_DATA_SUBDIR}"
 if $AUTO_DETECT; then
     echo "Auto-detecting samples in ${RAW_DATA_DIR}..."
     while IFS= read -r f; do
-        SAMPLE_LIST+=("$(basename "$f" | sed 's/_R1.fastq.gz//')")
-    done < <(find "$RAW_DATA_DIR" -name "*_R1.fastq.gz" -type f)
+        SAMPLE_LIST+=("$(basename "$f" | sed -E 's/_R[12].*.fastq.gz$//')")
+    done < <(find "$RAW_DATA_DIR" -name "*_R1*.fastq.gz" -type f)
 elif [ -n "$SAMPLE_FILE" ]; then
     [ -f "$SAMPLE_FILE" ] || { echo "ERROR: Sample file not found: $SAMPLE_FILE"; exit 1; }
     while IFS= read -r line || [ -n "$line" ]; do
@@ -139,8 +139,8 @@ echo "  ✓ diamond  $(diamond --version 2>&1 | head -1)"
 # ============================================================================
 FASTP_DIR="${BASE_DIR}/Data/processed_data/fastp_cleaned"
 HOST_REMOVED_DIR="${BASE_DIR}/Data/processed_data/host_removed"
-KRAKEN2_DIR="${BASE_DIR}/Data/processed_data/kraken2_output"
-DIAMOND_DIR="${BASE_DIR}/Data/functional_analysis/methane_genes"
+KRAKEN2_DIR="${BASE_DIR}/Results/kraken2_output"
+DIAMOND_DIR="${BASE_DIR}/Results/functional_analysis"
 LOG_DIR="${BASE_DIR}/Logs"
 mkdir -p "$FASTP_DIR" "$HOST_REMOVED_DIR" "$KRAKEN2_DIR" "$DIAMOND_DIR" "$LOG_DIR"
 
@@ -160,9 +160,9 @@ BT2_INDEX="${BASE_DIR}/Data/reference_dbs/host_genomes/plant_host"
 echo "Checking databases..."
 DB_MISSING=false
 [ -f "${KRAKEN2_DB}/hash.k2d" ] && echo "  ✓ Kraken2 DB: ${KRAKEN2_DB}" \
-    || { echo "  ❌ Kraken2 DB NOT found at: ${KRAKEN2_DB}"; DB_MISSING=true; }
+    || { echo "  Kraken2 DB NOT found at: ${KRAKEN2_DB}"; DB_MISSING=true; }
 { [ -f "${METHANE_DB}.dmnd" ] || [ -f "${METHANE_DB}" ]; } && echo "  ✓ DIAMOND DB: ${METHANE_DB}" \
-    || { echo "  ❌ DIAMOND DB NOT found at: ${METHANE_DB}.dmnd"; DB_MISSING=true; }
+    || { echo "  DIAMOND DB NOT found at: ${METHANE_DB}.dmnd"; DB_MISSING=true; }
 $DB_MISSING && { echo "ERROR: Required databases missing. See --help."; exit 1; }
 
 echo "Ready to process ${#SAMPLE_LIST[@]} sample(s) | threads=${THREADS} | base=${BASE_DIR} | force=${FORCE}"
@@ -234,30 +234,36 @@ process_sample() {
     fi
 
     # --------------------------------------------------------
-    # STEP 1.5: Host removal (optional)
     # --------------------------------------------------------
-    echo "--- STEP 1.5: Host removal ---"
+    # STEP 2: Host Removal (Bowtie2)
+    # --------------------------------------------------------
+    echo "--- STEP 2: Host Removal ---"
+    R1_FOR_ANALYSIS="${HOST_REMOVED_DIR}/${SAMPLE_ID}_R1_host_removed.fastq.gz"
+    R2_FOR_ANALYSIS="${HOST_REMOVED_DIR}/${SAMPLE_ID}_R2_host_removed.fastq.gz"
+    HOST_STATS="${HOST_REMOVED_DIR}/${SAMPLE_ID}_host_removal_stats.txt"
+    
     if [ -f "${BT2_INDEX}.1.bt2" ]; then
-        R1_FOR_ANALYSIS="${HOST_REMOVED_DIR}/${SAMPLE_ID}_R1_host_removed.fastq.gz"
-        R2_FOR_ANALYSIS="${HOST_REMOVED_DIR}/${SAMPLE_ID}_R2_host_removed.fastq.gz"
         if skip_if_done "$R1_FOR_ANALYSIS" "$R2_FOR_ANALYSIS"; then
-            echo "SKIP: host-removed files already exist"
+            echo "SKIP: Host-removed files already exist"
         else
+            echo "Removing host reads using Bowtie2 index: ${BT2_INDEX}"
             bowtie2 -x "$BT2_INDEX" -1 "$R1_CLEAN" -2 "$R2_CLEAN" \
                 --un-conc-gz "${HOST_REMOVED_DIR}/${SAMPLE_ID}_R%_host_removed.fastq.gz" \
-                --threads "$THREADS" --very-sensitive-local -S /dev/null
-            echo "Host removal done."
+                --threads "$THREADS" --very-sensitive-local -S /dev/null \
+                2>&1 | tee "$HOST_STATS"
+            echo "Host removal complete. Stats: ${HOST_STATS}"
         fi
     else
-        echo "WARNING: Bowtie2 index not found. Skipping host removal."
-        R1_FOR_ANALYSIS="$R1_CLEAN"
-        R2_FOR_ANALYSIS="$R2_CLEAN"
+        echo "WARNING: Bowtie2 index not found at ${BT2_INDEX}"
+        echo "Symlinking cleaned files as host-removed (no actual removal)"
+        ln -sf "$R1_CLEAN" "$R1_FOR_ANALYSIS"
+        ln -sf "$R2_CLEAN" "$R2_FOR_ANALYSIS"
+        echo "No host removal performed" > "$HOST_STATS"
     fi
-
     # --------------------------------------------------------
-    # STEP 2: Kraken2 Taxonomic Profiling
+    # STEP 3: Kraken2 Taxonomic Profiling
     # --------------------------------------------------------
-    echo "--- STEP 2: Kraken2 ---"
+    echo "--- STEP 3: Kraken2 ---"
     # Find kraken2 binary
     if command -v kraken2 &>/dev/null; then
         KRAKEN2_BIN="kraken2"
@@ -291,12 +297,26 @@ process_sample() {
     export TMPDIR="$TMPDIR_BASE"
 
     # --------------------------------------------------------
-    # STEP 3: DIAMOND Functional Gene Search
     # --------------------------------------------------------
-    echo "--- STEP 3: DIAMOND ---"
-    if skip_if_done "$DIAMOND_OUTPUT"; then
-        echo "SKIP: DIAMOND output already exists"
+    # STEP 4: Functional Gene Analysis (DIAMOND + Stats + RPKM)
+    # --------------------------------------------------------
+    echo "--- STEP 4: Functional Gene Analysis ---"
+    
+    # Check if all final outputs exist (skip entire analysis if complete)
+    if skip_if_done "$DIAMOND_OUTPUT" "$DIAMOND_SUMMARY" "$GENE_RPKM"; then
+        echo "SKIP: All functional analysis outputs already exist"
+        # Load existing stats for final report
+        TOTAL_HITS=$(wc -l < "$DIAMOND_OUTPUT")
+        MMO_HITS=$(grep -ic "methane monooxygenase" "$DIAMOND_OUTPUT" || true)
+        PMO_HITS=$(grep -iEc "PmoA|pMMO" "$DIAMOND_OUTPUT" || true)
+        TOTAL_METHANE=$((MMO_HITS + PMO_HITS))
+        FILTERED_COUNT=$(wc -l < "$FILTERED_HITS")
+        TOTAL_READS=$(( $(zcat "$R1_FOR_ANALYSIS" "$R2_FOR_ANALYSIS" | wc -l) / 4 ))
+        TOTAL_READS_M=$(awk "BEGIN {printf \"%.4f\", ${TOTAL_READS}/1000000}")
+        TOTAL_MAPPED_READS=$(awk '{print $1}' "$DIAMOND_OUTPUT" | sort -u | wc -l)
     else
+        # 4.1: DIAMOND alignment
+        echo "  4.1: Running DIAMOND alignment..."
         DIAMOND_TMPDIR="${TMPDIR}/diamond_${SAMPLE_ID}_$$"
         mkdir -p "$DIAMOND_TMPDIR"
         gunzip -c "$R1_FOR_ANALYSIS" "$R2_FOR_ANALYSIS" | \
@@ -307,19 +327,16 @@ process_sample() {
             --query-cover 80 --min-score 40 --max-target-seqs 5 --evalue 1e-5 \
             || { echo "ERROR: DIAMOND failed"; return 1; }
         rm -rf "$DIAMOND_TMPDIR" 2>/dev/null || true
-        echo "DIAMOND done. Results: ${DIAMOND_OUTPUT}"
-    fi
-
-    # --------------------------------------------------------
-    # STEP 4: Summary Report
-    # --------------------------------------------------------
-    echo "--- STEP 4: Summary ---"
-    TOTAL_HITS=$(wc -l < "$DIAMOND_OUTPUT")
-    MMO_HITS=$(grep -ic "methane monooxygenase" "$DIAMOND_OUTPUT" || true)
-    PMO_HITS=$(grep -iEc "PmoA|pMMO" "$DIAMOND_OUTPUT" || true)
-    TOTAL_METHANE=$((MMO_HITS + PMO_HITS))
-
-    cat > "$DIAMOND_SUMMARY" <<REPORT
+        echo "  DIAMOND alignment complete: ${DIAMOND_OUTPUT}"
+        
+        # 4.2: Generate summary statistics
+        echo "  4.2: Generating summary statistics..."
+        TOTAL_HITS=$(wc -l < "$DIAMOND_OUTPUT")
+        MMO_HITS=$(grep -ic "methane monooxygenase" "$DIAMOND_OUTPUT" || true)
+        PMO_HITS=$(grep -iEc "PmoA|pMMO" "$DIAMOND_OUTPUT" || true)
+        TOTAL_METHANE=$((MMO_HITS + PMO_HITS))
+        
+        cat > "$DIAMOND_SUMMARY" <<REPORT
 METHANE METABOLISM GENE SEARCH RESULTS - ${SAMPLE_ID} [$(date +%Y-%m-%d)]
 DB: methane_master_db | query-cover >80% | bitscore >40 | E-value <1e-5
 
@@ -328,41 +345,32 @@ Methane monooxygenase (MMO): ${MMO_HITS}
 PmoA family (pMMO):          ${PMO_HITS}
 Total methanotroph hits:     ${TOTAL_METHANE}
 REPORT
-
-    if [ "$TOTAL_METHANE" -gt 0 ]; then
-        cat >> "$DIAMOND_SUMMARY" <<INTERP
+        
+        if [ "$TOTAL_METHANE" -gt 0 ]; then
+            cat >> "$DIAMOND_SUMMARY" <<INTERP
 METHANOTROPHS DETECTED: Aerobic methane-oxidizing bacteria present.
   pMMO = primary methane oxidation; MMO = alternative pathway.
 INTERP
-    else
-        echo "NO SIGNIFICANT METHANE METABOLISM GENES DETECTED." >> "$DIAMOND_SUMMARY"
-    fi
-    echo "Summary: ${DIAMOND_SUMMARY}"
-
-    # --------------------------------------------------------
-    # STEP 5: Gene Abundance (RPKM)
-    # --------------------------------------------------------
-    echo "--- STEP 5: RPKM ---"
-    if skip_if_done "$GENE_RPKM"; then
-        echo "SKIP: RPKM output already exists"
-        FILTERED_COUNT=$(wc -l < "$FILTERED_HITS")
-        TOTAL_READS=$(( $(zcat "$R1_FOR_ANALYSIS" "$R2_FOR_ANALYSIS" | wc -l) / 4 ))
-        TOTAL_READS_M=$(awk "BEGIN {printf \"%.4f\", ${TOTAL_READS}/1000000}")
-        TOTAL_MAPPED_READS=$(awk '{print $1}' "$DIAMOND_OUTPUT" | sort -u | wc -l)
-    else
+        else
+            echo "NO SIGNIFICANT METHANE METABOLISM GENES DETECTED." >> "$DIAMOND_SUMMARY"
+        fi
+        echo "  Summary report: ${DIAMOND_SUMMARY}"
+        
+        # 4.3: Calculate gene abundance (RPKM)
+        echo "  4.3: Calculating gene abundance (RPKM)..."
         grep -iE "methane|pmo|mmo" "$DIAMOND_OUTPUT" \
             | grep -viE "ribosom|ribokinase|ribonucleoside|ammonia" > "$FILTERED_HITS"
         FILTERED_COUNT=$(wc -l < "$FILTERED_HITS")
-        echo "Filtered hits: ${FILTERED_COUNT}"
-
+        echo "  Filtered hits: ${FILTERED_COUNT}"
+        
         awk '{print $7}' "$FILTERED_HITS" | sort | uniq -c | sort -rn > "$GENE_COUNTS"
-        echo "Top 10 genes:"; head -10 "$GENE_COUNTS"
-
+        echo "  Top 10 genes:"; head -10 "$GENE_COUNTS"
+        
         TOTAL_MAPPED_READS=$(awk '{print $1}' "$DIAMOND_OUTPUT" | sort -u | wc -l)
         TOTAL_READS=$(( $(zcat "$R1_FOR_ANALYSIS" "$R2_FOR_ANALYSIS" | wc -l) / 4 ))
         TOTAL_READS_M=$(awk "BEGIN {printf \"%.4f\", ${TOTAL_READS}/1000000}")
-        echo "Total reads: ${TOTAL_READS} (${TOTAL_READS_M}M) | Mapped: ${TOTAL_MAPPED_READS}"
-
+        echo "  Total reads: ${TOTAL_READS} (${TOTAL_READS_M}M) | Mapped: ${TOTAL_MAPPED_READS}"
+        
         awk -v total_reads="$TOTAL_READS_M" -v filt="$FILTERED_HITS" '
         BEGIN { print "Gene_Name\tRead_Count\tAvg_Length\tRPKM" }
         {
@@ -374,11 +382,10 @@ INTERP
             cmd | getline avg_len; close(cmd)
             printf "%s\t%d\t%.1f\t%.4f\n", gene, count, avg_len, (count*1000)/(avg_len*total_reads)
         }' "$GENE_COUNTS" > "$GENE_RPKM"
-        echo "Top 10 by RPKM:"; head -11 "$GENE_RPKM" | tail -10
+        echo "  Top 10 by RPKM:"; head -11 "$GENE_RPKM" | tail -10
+        echo "  RPKM analysis complete: ${GENE_RPKM}"
     fi
-
-    # --------------------------------------------------------
-    # STEP 6: Results
+    # STEP 5: Results
     # --------------------------------------------------------
     local END_TIME ELAPSED
     END_TIME=$(date +%s)
