@@ -2,7 +2,7 @@
 
 Fast methane metabolism gene detection pipeline for shotgun metagenomic data.
 
-**Focus**: Detection and quantification of methane metabolism genes (pmoA, mmoX, mcrA) in environmental samples.
+**Focus**: Detection and quantification of functional groups and genes in environmental samples.
 
 ---
 
@@ -24,18 +24,16 @@ sbatch Scripts/run_shotgun.slurm
 ## Pipeline Overview
 
 **Workflow:**
-```
+
 Raw FASTQ → fastp QC → Host Removal → Kraken2 Taxonomy → DIAMOND Gene Search → Quantification
+
+
 **Steps:**
 1. **fastp QC** - Quality control, adapter trimming, deduplication
-2. **Bowtie2 Host Removal** - Remove plant/animal DNA contamination (optional)
+2. **Bowtie2 Host Removal** - Remove plant/animal DNA contamination
 3. **Kraken2 Taxonomy** - Taxonomic classification of microbial community
 4. **DIAMOND** - Functional gene search against methane gene database
 5. **Quantification** - Count genes and calculate RPKM-normalized abundance
-
-**Expected Runtime:**
-- Single sample (~10M reads): 15-20 minutes
-- 6 samples (sequential): 90-120 minutes
 
 ---
 
@@ -66,13 +64,13 @@ conda activate quick_search
 wget https://genome-idx.s3.amazonaws.com/kraken/k2_standard_20240904.tar.gz
 mkdir -p Data/reference_dbs
 tar -xzf k2_standard_*.tar.gz -C Data/reference_dbs/
-
+```
 # Option 2: Build custom database
 kraken2-build --standard --threads 16 --db Data/reference_dbs
 **DIAMOND Database** (required)
 - Place methane gene database at: `Data/reference_dbs/DIAMOND/methane_master_db.dmnd`
 
-**Bowtie2 Host Index** (optional)
+**Bowtie2 Host Index**
 - Place host genome index at: `Data/reference_dbs/host_genomes/plant_host.*.bt2`
 - If not present, pipeline will skip host removal step
 
@@ -97,7 +95,7 @@ bash Scripts/shotgun_quick.sh --sample-list samples.txt --threads 16
 
 # Force re-run all steps (skip checkpoints)
 bash Scripts/shotgun_quick.sh --auto --force --threads 16
-
+```
 # View help
 bash Scripts/shotgun_quick.sh --help
 ### HPC Batch Job (SLURM)
@@ -121,7 +119,7 @@ sacct -j <JOB_ID> --format=JobID,State,ExitCode,Elapsed,MaxRSS
 - CPUs: 16
 - Memory: 128GB
 - Time limit: 48 hours
-
+```
 ---
 
 ## Input Data
@@ -173,44 +171,6 @@ All outputs organized by sample ID:
 - `{SAMPLE}_fastp.log` - fastp detailed output
 - `slurm_{JOB_ID}.out` - SLURM job standard output
 - `slurm_{JOB_ID}.err` - SLURM job error output
-
----
-
-## Results Interpretation
-
-### Quality Control Metrics
-
-**Good quality indicators:**
-- Q20 bases: >95%
-- Q30 bases: >85%
-- Reads passing filter: >90%
-- Duplication rate: <5%
-
-### Taxonomic Classification
-
-**Typical results:**
-- Classification rate: 20-40% (environmental samples)
-- Unclassified: 60-80% (normal for complex metagenomes)
-
-**Methanotrophic bacteria to look for:**
-- **Type I** (Gammaproteobacteria): Methylomonas, Methylococcus, Methylomicrobium
-- **Type II** (Alphaproteobacteria): Methylocystis, Methylosinus
-- **Type X**: Methylocaldum
-
-### Functional Gene Hits
-
-**DIAMOND output interpretation:**
-- **Total hits**: All alignments to methane gene database
-- **Filtered hits**: After removing ribosomal/non-target genes
-- **MMO**: Methane monooxygenase (soluble form)
-- **pMMO**: Particulate methane monooxygenase
-- **MCR**: Methyl-coenzyme M reductase (methanogens)
-
-**RPKM values:**
-- Normalizes for gene length and sequencing depth
-- Comparable across samples
-- Higher RPKM = higher gene abundance
-
 ---
 
 ## Directory Structure
@@ -303,15 +263,12 @@ conda env create -f quick_search.yml
 ```bash
 # Check job status
 sacct -j <JOB_ID> --format=JobID,State,ExitCode,Elapsed,MaxRSS
-
+```
 # Common causes:
-# - Time limit exceeded: increase --time
-# - Memory exceeded: increase --mem
-# - Node failure: resubmit job
 **"Host removal skipped"**
 - This is normal if Bowtie2 index not found
 - Pipeline will continue without host removal
-- To enable: create index at `Data/reference_dbs/host_genomes/plant_host`
+- To enable: create index at `Data/reference_dbs/host_genomes`
 
 **"No methane genes detected"**
 - Verify DIAMOND database is correct
@@ -319,30 +276,6 @@ sacct -j <JOB_ID> --format=JobID,State,ExitCode,Elapsed,MaxRSS
 - View DIAMOND output: `cat Results/functional_analysis/{SAMPLE}_combined_methane_hits.txt`
 - Sample may genuinely lack methanotrophs/methanogens
 
----
-
-## Performance Optimization
-
-### Threading
-```bash
-# Adjust based on available CPUs
-bash Scripts/shotgun_quick.sh --auto --threads 32
-### Parallel Processing
-Edit `Scripts/shotgun_quick.sh` or set environment variable:
-```bash
-export MAX_PARALLEL_SAMPLES=4  # Process 4 samples simultaneously
-```
-Requires GNU parallel: `conda install -c conda-forge parallel`
-
-### Disk Space Management
-```bash
-# Remove intermediate files after successful run
-rm -rf Data/temp/*
-rm -rf Data/processed_data/fastp_cleaned/  # Keep only final results
-### Checkpoints
-Pipeline automatically skips completed steps. To force re-run:
-```bash
-bash Scripts/shotgun_quick.sh --auto --force
 ---
 
 ## Database Information
