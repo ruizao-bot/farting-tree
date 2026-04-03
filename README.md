@@ -18,8 +18,9 @@ bash Scripts/shotgun_quick.sh --auto --threads 16
 
 # 3. Or submit to HPC
 sbatch Scripts/run_shotgun.slurm
----
+```
 
+---
 ## Pipeline Overview
 
 **Workflow:**
